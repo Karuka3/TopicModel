@@ -1,0 +1,83 @@
+import re
+import string
+from bs4 import BeautifulSoup
+from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize, word_tokenize
+
+
+class Preprocessing:
+    """
+    Preprocessing:
+    cleaning → split the word → normalize words → Remove Stopwords → word2vec
+    """
+
+    def __init__(self):
+        pass
+
+    def cleaning(self, texts, html=True, lower=True, newline=True, punctuation=True, number=True):
+        """
+        Parameters
+        ----------
+        texts : list
+            text of list
+        html : bool
+            If true, you can eliminate html tag
+        lower : bool
+            If true, texts are changed lowercase
+        newline : bool
+            If true, you can eliminate newline tag
+        punctuation : bool
+            If true, you can eliminate symbols without "." and "?"
+        number : bool
+            If true, numbers are changed to "0"
+        """
+        clean_texts = texts
+        if html:
+            clean_texts = [BeautifulSoup(text) for text in clean_texts]
+            clean_texts = [text.get_text() for text in clean_texts]
+        if lower:
+            clean_texts = [text.lower() for text in clean_texts]
+        if newline:
+            clean_texts = ["".join(text.splitlines()) for text in clean_texts]
+        if punctuation:
+            alphabet = re.compile(r"[^a-zA-Z0-9.? ]")
+            clean_texts = [alphabet.sub("", text) for text in clean_texts]
+        if number:
+            number = re.compile(r"[0-9]+")
+            clean_texts = [number.sub("0", text) for text in clean_texts]
+        clean_texts = [re.sub("  ", " ", text) for text in clean_texts]
+        return clean_texts
+
+    def get_words(self, text, stop=None):
+        stop_words = stopwords.words("english")
+        if stop:
+            for stopword in stop:
+                stop_words.append(stopword)
+        text = re.sub(r"[.?]", "", text)
+        tokens = word_tokenize(text)
+        words = [word for word in tokens if word not in stop_words]
+        return words
+
+    def get_sentences(self, text):
+        return sent_tokenize(text)
+
+    def get_docs(self, texts):
+        self.docs = [self.get_words(text) for text in texts]
+        self.docs = list(filter(lambda x: x != [], self.docs))
+        return self.docs
+
+    def get_corpus(self):
+        self.word2num = dict()
+        num2word = dict()
+        count = 0
+        for d in self.docs:
+            for w in d:
+                if w not in self.word2num.keys():
+                    self.word2num[w] = count
+                    num2word[count] = w
+                    count += 1
+        return self.word2num, num2word
+
+    def get_ndocs(self):
+        ndocs = [[self.word2num[w] for w in d] for d in self.docs]
+        return ndocs

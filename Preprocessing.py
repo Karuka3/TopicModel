@@ -33,7 +33,8 @@ class Preprocessing:
         """
         clean_texts = texts
         if html:
-            clean_texts = [BeautifulSoup(text) for text in clean_texts]
+            clean_texts = [BeautifulSoup(text, 'html.parser')
+                           for text in clean_texts]
             clean_texts = [text.get_text() for text in clean_texts]
         if lower:
             clean_texts = [text.lower() for text in clean_texts]
@@ -62,22 +63,22 @@ class Preprocessing:
         return sent_tokenize(text)
 
     def get_docs(self, texts):
-        self.docs = [self.get_words(text) for text in texts]
-        self.docs = list(filter(lambda x: x != [], self.docs))
-        return self.docs
+        docs = [self.get_words(text) for text in texts]
+        docs = list(filter(lambda x: x != [], docs))
+        return docs
 
-    def get_corpus(self):
-        self.word2num = dict()
+    def get_corpus(self, docs):
+        word2num = dict()
         num2word = dict()
         count = 0
-        for d in self.docs:
+        for d in docs:
             for w in d:
-                if w not in self.word2num.keys():
-                    self.word2num[w] = count
+                if w not in word2num.keys():
+                    word2num[w] = count
                     num2word[count] = w
                     count += 1
-        return self.word2num, num2word
+        return word2num, num2word
 
-    def get_ndocs(self):
-        ndocs = [[self.word2num[w] for w in d] for d in self.docs]
+    def get_ndocs(self, docs, word2num):
+        ndocs = [[word2num[w] for w in d] for d in docs]
         return ndocs

@@ -6,10 +6,6 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 
 
 class Preprocessing:
-    """
-    Preprocessing:
-    cleaning → split the word → normalize words → Remove Stopwords → word2vec
-    """
 
     def __init__(self):
         pass
@@ -63,11 +59,25 @@ class Preprocessing:
         return sent_tokenize(text)
 
     def get_docs(self, texts):
+        """
+        Making words set in each documents.
+
+        Return
+        ------
+        Words in each documents
+        """
         docs = [self.get_words(text) for text in texts]
         docs = list(filter(lambda x: x != [], docs))
         return docs
 
     def get_corpus(self, docs):
+        """
+        Making the corpus.
+
+        Return
+        ------
+        Corpus in all documents.
+        """
         word2num = dict()
         num2word = dict()
         count = 0
@@ -80,5 +90,8 @@ class Preprocessing:
         return word2num, num2word
 
     def get_ndocs(self, docs, word2num):
+        """
+        Numerralization the docs
+        """
         ndocs = [[word2num[w] for w in d] for d in docs]
         return ndocs

@@ -6,13 +6,14 @@ verify_ssl = true
 [dev-packages]
 autopep8 = "*"
 pylint = "*"
-pandas = "*"
 
 [packages]
 numpy = "*"
 tqdm = "*"
 beautifulsoup4 = "*"
 nltk = "*"
+matplotlib = "*"
+pandas = "*"
 
 [requires]
 python_version = "3.7"

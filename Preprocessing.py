@@ -1,5 +1,6 @@
 import re
 import string
+import itertools
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize, word_tokenize
@@ -95,3 +96,7 @@ class Preprocessing:
         """
         ndocs = [[word2num[w] for w in d] for d in docs]
         return ndocs
+
+    def get_wordset(self, docs):
+        wordset = list(itertools.chain(*docs))
+        return wordset

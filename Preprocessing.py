@@ -11,7 +11,7 @@ class Preprocessing:
     def __init__(self):
         pass
 
-    def cleaning(self, texts, html=True, lower=True, newline=True, punctuation=True, number=True):
+    def cleaning(self, texts, url=True, html=True, lower=True, newline=True, punctuation=True, number=True):
         """
         Parameters
         ----------
@@ -29,6 +29,11 @@ class Preprocessing:
             If true, numbers are changed to "0"
         """
         clean_texts = texts
+        if url:
+            https = re.compile(r"https?://[\w/:%#\$&\?\(\)~\.=\+\-…]+")
+            http = re.compile(r"http?://[\w/:%#\$&\?\(\)~\.=\+\-…]+")
+            clean_texts = [https.sub("", text) for text in clean_texts]
+            clean_texts = [http.sub("", text) for text in clean_texts]
         if html:
             clean_texts = [BeautifulSoup(text, 'html.parser')
                            for text in clean_texts]
@@ -71,13 +76,13 @@ class Preprocessing:
         docs = list(filter(lambda x: x != [], docs))
         return docs
 
-    def get_corpus(self, docs):
+    def make_dictionary(self, docs):
         """
-        Making the corpus.
+        Making the dictionary.
 
         Return
         ------
-        Corpus in all documents.
+        Dictionary in all documents.
         """
         word2num = dict()
         num2word = dict()

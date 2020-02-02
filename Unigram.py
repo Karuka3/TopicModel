@@ -9,19 +9,6 @@ plt.style.use("ggplot")
 
 
 class Unigram:
-    """
-    D:      the number of docuements
-    Nd:     the number of words in d
-    V:      the number of vocabulary
-    W:      Document set
-    wd:     word set in d
-    d:      document index
-    v:      vocabulary index
-    n:      word index
-    N:      total word counts
-    Nv:     vocaburaly v counts in all documents
-    Ndv:    vocaburaly v counts in d
-    """
 
     def __init__(self, wordset, beta=2):
         wordset = pd.Series(wordset)
@@ -77,3 +64,66 @@ class Unigram:
             beta = beta_new
             if i == max_iter - 1:
                 print("beta is not converged")
+
+
+class MixtureUnigram:
+    def __init__(self, K=9, alpha=0.1, beta=0.1, random_state=21):
+        self.K = K
+        self.alpha = alpha
+        self.beta = beta
+        self.random_state = random_state
+
+    def fit(self, docs, word2num, bows, estimator="ML", max_iter=1000):
+        self.W = docs
+        self.D = len(docs)
+        self.V = len(word2num)
+        self.Nd = [len(d) for d in self.W]
+        self.Ndv = bows
+        self.theta, self.phi, self.q = self.init_params()
+        self.word2num = word2num
+
+        if estimator == "ML":
+            for iter in tqdm(range(max_iter)):
+                theta_new = np.zeros(self.K)
+                phi_new = np.zeros([self.K, self.V])
+                for d in range(self.D):
+                    for k in range(self.K):
+                        self.q[d][k] = self.e_step(d, k)
+                        theta_new, phi_new = self.m_step(
+                            d, k, theta_new, phi_new)
+                self.theta = self.normarization(theta_new)
+                self.phi = self.normarization(phi_new, axis=0)
+            save = {"theta": self.theta, "phi": self.phi}
+            return save
+
+    def init_params(self):
+        np.random.seed(self.random_state)
+        theta = np.random.uniform(0, 1, self.K)
+        theta /= theta.sum()
+        phi = np.random.uniform(0, 1, [self.K, self.V])
+        phi /= phi.sum(axis=1)[:, np.newaxis]
+        q = np.zeros([self.D, self.K])
+        return theta, phi, q
+
+    def e_step(self, d, k):
+        numerator = self.theta[k]
+        for v in range(self.V):
+            numerator *= self.phi[k][v]**self.Ndv[d][v]
+        denominator = []
+        for k_ in range(self.K):
+            for v in range(self.V):
+                tmp = self.phi[k_][v]**self.Ndv[d][v]
+            denominator.append(self.theta[k_] * tmp)
+        q = numerator / np.sum(denominator)
+        return q
+
+    def m_step(self, d, k, theta_new, phi_new):
+        theta_new[k] += self.q[d][k]
+        for n in range(self.Nd[d]):
+            v = self.word2num[self.W[d][n]]
+            phi_new[k][v] += self.q[d][k]
+        return theta_new, phi_new
+
+    def normarization(self, ndarray, axis=0):
+        ndarray /= ndarray.sum(axis=axis)
+        return ndarray

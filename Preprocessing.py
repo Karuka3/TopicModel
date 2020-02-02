@@ -1,6 +1,7 @@
 import re
 import string
 import itertools
+import numpy as np
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize, word_tokenize
@@ -97,7 +98,7 @@ class Preprocessing:
 
     def get_ndocs(self, docs, word2num):
         """
-        Numerralization the docs
+        Numeralization the docs
         """
         ndocs = [[word2num[w] for w in d] for d in docs]
         return ndocs
@@ -105,3 +106,15 @@ class Preprocessing:
     def get_wordset(self, docs):
         wordset = list(itertools.chain(*docs))
         return wordset
+
+    def get_bows(self, docs, word2num):
+        bows = []
+        for doc in docs:
+            bow = np.zeros(len(word2num), dtype=int)
+            for word in doc:
+                index = word2num[word]
+                bow[index] += 1
+            bows.append(bow)
+
+        wordcount = np.sum(bows, axis=0, dtype=int)
+        return bows, wordcount

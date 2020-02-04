@@ -89,8 +89,7 @@ class MixtureUnigram:
                 for d in range(self.D):
                     for k in range(self.K):
                         self.q[d][k] = self.e_step(d, k)
-                        theta_new, phi_new = self.m_step(
-                            d, k, theta_new, phi_new)
+                        theta_new, phi_new = self.m_step(d, k, theta_new, phi_new)
                 self.theta /= self.theta.sum()
                 self.phi /= self.phi.sum(axis=1)[:, np.newaxis]
 
@@ -156,5 +155,5 @@ class MixtureUnigram:
         phi_df = pd.DataFrame(self.phi.T, index=self.word2num.keys)
         topic_df = pd.DataFrame(index=range(N), columns=range(self.K))
         for k in range(self.K):
-            topic_df.iloc[:, k] = phi_df[k].sort_valus()[::-1][:30].index
+            topic_df.iloc[:, k] = phi_df[k].sort_valus()[::-1][:30].index.values()
         return topic_df

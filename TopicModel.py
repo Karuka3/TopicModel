@@ -29,8 +29,7 @@ class PLSA:
                 for n in range(len(self.W[d])):
                     for k in range(self.K):
                         self.q[d][k][n] = self.e_step(d, n, k)
-                        theta_new, phi_new = self.m_step(
-                            d, n, k, theta_new, phi_new)
+                        theta_new, phi_new = self.m_step(d, n, k, theta_new, phi_new)
             self.theta /= self.theta.sum(axis=1)[:, np.newaxis]
             self.phi /= self.phi.sum(axis=1)[:, np.newaxis]
             self.phi[self.phi < 1e-100] = 1e-100
@@ -92,6 +91,14 @@ class PLSA:
         plt.xticks(np.arange(self.K), np.arange(self.K))
         plt.show()
 
+    def make_topic_distribution(self, N=30):
+        phi_df = pd.DataFrame(self.phi.T, index=self.word2num.keys())
+        topic_df = pd.DataFrame(index=range(N), columns=range(self.K))
+        for k in range(self.K):
+            topic_df.iloc[:, k] = phi_df[k].sort_values()[
+                ::-1][:N].index.values
+        print(topic_df)
+
 
 class LDA:
     def __init__(self, K=9, alpha=0.1, beta=0.1, verbose=0, random_state=17):
@@ -129,10 +136,8 @@ class LDA:
     def sampling(self, i, v):
         probs = np.zeros(self.K)
         for k in range(self.K):
-            theta = (self.ndk[i, k] + self.alpha) / \
-                (self.nd[i] + self.alpha * self.D)
-            phi = (self.nkv[k, v] + self.beta) / \
-                (self.nk[k] + self.beta * self.K)
+            theta = (self.ndk[i, k] + self.alpha) / (self.nd[i] + self.alpha * self.D)
+            phi = (self.nkv[k, v] + self.beta) / (self.nk[k] + self.beta * self.K)
             prob = theta * phi
             probs[k] = prob
         probs /= probs.sum()

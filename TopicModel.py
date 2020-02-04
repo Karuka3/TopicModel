@@ -1,27 +1,118 @@
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 from tqdm import tqdm
+
+plt.rcParams["font.family"] = 'MS Gothic'
+plt.style.use("ggplot")
+
+
+class PLSA:
+
+    def __init__(self, K=9, random_state=17):
+        self.K = K
+        self.random_state = random_state
+
+    def fit(self, docs, word2num, bows, max_iter=1000):
+        self.W = docs
+        self.D = len(docs)
+        self.V = len(word2num)
+        self.Nd = [len(d) for d in self.W]
+        self.Ndv = bows
+        self.theta, self.phi, self.q = self.init_params()
+        self.word2num = word2num
+
+        for __iter in tqdm(range(max_iter)):
+            theta_new = np.zeros([self.D, self.K])
+            phi_new = np.zeros([self.K, self.V])
+            for d in range(self.D):
+                for n in range(len(self.W[d])):
+                    for k in range(self.K):
+                        self.q[d][k][n] = self.e_step(d, n, k)
+                        theta_new, phi_new = self.m_step(
+                            d, n, k, theta_new, phi_new)
+            self.theta /= self.theta.sum(axis=1)[:, np.newaxis]
+            self.phi /= self.phi.sum(axis=1)[:, np.newaxis]
+            self.phi[self.phi < 1e-100] = 1e-100
+
+    def init_params(self):
+        np.random.seed(self.random_state)
+        theta = np.random.rand(self.D, self.K)
+        phi = np.random.rand(self.K, self.V)
+        theta /= theta.sum(axis=1)[:, np.newaxis]
+        phi /= phi.sum(axis=1)[:, np.newaxis]
+        q = [[[0] * n] * self.K for n in self.Nd]
+        return theta, phi, q
+
+    def e_step(self, d, n, k):
+        if type(self.W[d][n]) is str:
+            v = self.word2num[self.W[d][n]]
+        else:
+            v = self.W[d][n]
+        numerator = self.theta[d][k] * self.phi[k][v]
+        denominator = 0
+        for k_ in range(self.K):
+            denominator += self.theta[d][k_] * self.phi[k_][v]
+        q = numerator / denominator
+        return q
+
+    def m_step(self, d, n, k, theta_new, phi_new):
+        theta_new[d][k] += self.q[d][k][n]
+        if type(self.W[d][n]) is str:
+            for n_ in range(self.Nd[d]):
+                v = self.word2num[self.W[d][n_]]
+                phi_new[k][v] += self.q[d][k][n_]
+        else:
+            for n_ in range(self.Nd[d]):
+                v = self.W[d][n_]
+                phi_new[k][v] += self.q[d][k][n_]
+        return theta_new, phi_new
+
+    def graph_phi(self, num2word, d=0, n=30, max_x=0.0005):
+        topic = self.theta[d].argmax()
+        word_prob = pd.Series(self.phi[topic])
+        word_prob.index = [num2word[v] for v in range(self.V)]
+        phi_d = word_prob.sort_values()[::-1][:n]
+        print(word_prob)
+        phi_d_position = np.arange(len(phi_d[:n]))
+        plt.barh(phi_d_position, phi_d)
+        plt.xlim(0, max_x)
+        plt.ylim(0, n)
+        plt.xlabel(u"Prob")
+        plt.ylabel(u"word")
+        plt.title(u"Phi Topic{} ".format(topic))
+        plt.yticks(phi_d_position, phi_d.index[:n][::-1], rotation=0)
+        plt.show()
+
+    def graph_theta(self, d=0):
+        plt.bar(np.arange(self.K), self.theta[d], align="center", color="red")
+        plt.title(u"Document {}\n θ ".format(d))
+        plt.xlabel(u"Topic")
+        plt.ylabel(u"Prob")
+        plt.xticks(np.arange(self.K), np.arange(self.K))
+        plt.show()
 
 
 class LDA:
-    def __init__(self, K=5, alpha=0.1, beta=0.1, verbose=0, random_state=17):
+    def __init__(self, K=9, alpha=0.1, beta=0.1, verbose=0, random_state=17):
         self.K = K          # <- topic count
         self.alpha = alpha  # <- parameter of topics prior
         self.beta = beta    # <- parameter of words proir
         self.verbose = verbose
         self.random_state = random_state
 
-    def fit(self, docs, word2num, max_iter=1000):
+    def fit(self, docs, word2num, estimator="Gibbs", max_iter=1000):
         np.random.seed(self.random_state)
-        self.docs = docs
+        self.W = docs
         self.V = len(word2num)  # <- word count
-        self.M = len(docs)      # <- documents count
+        self.D = len(docs)      # <- documents count
         self.topics = self.init_topics()
         self.ndk, self.nkv, self.nd, self.nk = self.init_params()
 
-        for iter in tqdm(range(max_iter)):
+        for __iter in tqdm(range(max_iter)):
             for i, d in enumerate(self.topics):
                 for j, k in enumerate(d):
-                    v = self.docs[i][j]
+                    v = self.W[i][j]
                     self.ndk[i, k] -= 1
                     self.nkv[k, v] -= 1
                     self.nk[k] -= 1
@@ -39,7 +130,7 @@ class LDA:
         probs = np.zeros(self.K)
         for k in range(self.K):
             theta = (self.ndk[i, k] + self.alpha) / \
-                (self.nd[i] + self.alpha * self.M)
+                (self.nd[i] + self.alpha * self.D)
             phi = (self.nkv[k, v] + self.beta) / \
                 (self.nk[k] + self.beta * self.K)
             prob = theta * phi
@@ -49,16 +140,16 @@ class LDA:
         return z
 
     def init_topics(self):
-        topics = [[np.random.randint(self.K) for w in d] for d in self.docs]
+        topics = [[np.random.randint(self.K) for w in d] for d in self.W]
         return topics
 
     def init_params(self):
-        ndk = np.zeros((self.M, self.K))  # <- topic distribution of sentences
+        ndk = np.zeros((self.D, self.K))  # <- topic distribution of sentences
         nkv = np.zeros((self.K, self.V))  # <- word disrtibution of each topics
         for i, d in enumerate(self.topics):
             for j, z in enumerate(d):
                 ndk[i, z] += 1
-                nkv[z, self.docs[i][j]] += 1
+                nkv[z, self.W[i][j]] += 1
         nd = ndk.sum(axis=1)
         nk = nkv.sum(axis=1)
         return ndk, nkv, nd, nk

@@ -117,4 +117,4 @@ class Preprocessing:
             bows.append(bow)
 
         wordcount = np.sum(bows, axis=0, dtype=int)
-        return bows, wordcount
+        return np.array(bows), wordcount

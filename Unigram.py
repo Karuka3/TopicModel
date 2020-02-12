@@ -69,17 +69,17 @@ class Unigram:
 class MixtureUnigram:
     def __init__(self, K=9, alpha=0.1, beta=0.1, random_state=21):
         self.K = K
-        self.alpha = alpha
-        self.beta = beta
+        self.alpha0 = alpha
+        self.beta0 = beta
         self.random_state = random_state
 
-    def fit(self, docs, word2num, bows, estimator="ML", max_iter=1000):
+    def fit(self, docs, word2num, bows: list, estimator="ML", max_iter=1000):
         self.W = docs
         self.D = len(docs)
         self.V = len(word2num)
         self.Nd = [len(d) for d in self.W]
         self.Ndv = bows
-        self.theta, self.phi, self.q = self.init_params()
+        self.theta, self.phi, self.q, self.alpha, self.beta = self.init_params()
         self.word2num = word2num
 
         if estimator == "ML":
@@ -93,14 +93,41 @@ class MixtureUnigram:
                 self.theta /= self.theta.sum()
                 self.phi /= self.phi.sum(axis=1)[:, np.newaxis]
 
+        elif estimator == "VB":
+            for __iter in tqdm(range(max_iter)):
+                alpha_new = np.ones(self.K) * self.alpha0
+                beta_new = np.ones((self.K, self.V)) * self.beta0
+                dig_alpha = digamma(self.alpha) - digamma(self.alpha.sum())
+                dig_beta0 = digamma(self.beta)
+                dig_beta1 = digamma(self.beta.sum(axis=1, keepdims=True))
+                for d in range(self.D):
+                    for k in range(self.K):
+                        self.q[d][k] = np.exp(dig_alpha[k] + np.dot(self.Ndv[d], dig_beta0[k]) -
+                                              self.Nd[d] * dig_beta1[k])
+                        alpha_new[k] += self.q[d][k]
+                        if type(self.W[d][0]) is str:
+                            for n in range(self.Nd[d]):
+                                v = self.word2num[self.W[d][n]]
+                                beta_new[k][v] += self.q[d][k]
+                        else:
+                            for n in range(self.Nd[d]):
+                                v = self.W[d][n]
+                                beta_new[k][v] += self.q[d][k]
+                self.alpha = alpha_new
+                self.beta = beta_new
+            self.theta = np.random.dirichlet(self.alpha)
+            self.phi = np.array([np.random.dirichlet(b) for b in self.beta])
+
     def init_params(self):
         np.random.seed(self.random_state)
         theta = np.random.rand(self.K)
-        phi = np.random.rand(self.K, self.V)
-        q = np.zeros([self.D, self.K])
         theta /= theta.sum()
+        phi = np.random.rand(self.K, self.V)
         phi /= phi.sum(axis=1)[:, np.newaxis]
-        return theta, phi, q
+        q = np.zeros([self.D, self.K])
+        alpha = self.alpha0 + np.random.rand(self.K)
+        beta = self.beta0 + np.random.rand(self.K, self.V)
+        return theta, phi, q, alpha, beta
 
     def e_step(self, d, k):
         numerator = self.theta[k]
@@ -127,24 +154,21 @@ class MixtureUnigram:
                 phi_new[k][v] += self.q[d][k]
         return theta_new, phi_new
 
-    def graph_phi(self, num2word, d=0, n=30, max_x=0.0005):
-        topic = self.q[d].argmax()
+    def graph_phi(self, num2word, topic=0, n=30, max_x=0.005):
         word_prob = pd.Series(self.phi[topic])
         word_prob.index = [num2word[v] for v in range(self.V)]
-        phi_d = word_prob.sort_values()[::-1][:n]
-        phi_d_position = np.arange(len(phi_d[:n]))
-        plt.barh(phi_d_position, phi_d)
+        phi_d = word_prob.sort_values(ascending=False)
+        plt.barh(np.arange(len(phi_d[:n])), phi_d[:n][::-1])
         plt.xlim(0, max_x)
         plt.ylim(0, n)
         plt.xlabel(u"Prob")
         plt.ylabel(u"word")
         plt.title(u"Phi Topic{} ".format(topic))
-        plt.yticks(phi_d_position, phi_d.index[:n][::-1], rotation=0)
+        plt.yticks(np.arange(len(phi_d[:n])), phi_d.index[:n][::-1], rotation=0)
         plt.show()
 
     def graph_theta(self):
-        plt.bar(np.arange(self.K), self.theta,
-                align="center", color="red")
+        plt.bar(np.arange(self.K), self.theta, align="center", color="red")
         plt.title(u"θ")
         plt.xlabel(u"Topic")
         plt.ylabel(u"Prob")

@@ -21,10 +21,7 @@ class Unigram:
         if estimator == "ML":
             self.phi = self.Nv / self.N
         elif estimator == "MAP":
-            self.phi = (self.Nv + self.beta - 1) / \
-                (self.N + (self.beta - 1) * (self.V))
-        # elif estimator == "Bayes":
-        #    self.phi = (self.Nv + self.beta) / (self.N + (self.beta * self.V))
+            self.phi = (self.Nv + self.beta - 1) / (self.N + (self.beta - 1) * (self.V))
         else:
             print("Estimator is ML or MAP")
 
@@ -34,18 +31,15 @@ class Unigram:
             word = np.random.choice(self.phi.index, p=self.phi)
             print(word)
 
-    def graph(self, n=30, max_x=0.005, save=False):
-        fig = plt.barh(range(len(self.phi))[:n], self.phi.iloc[:n][::-1])
+    def graph(self, n=30, max_x=0.005):
+        plt.barh(range(len(self.phi))[:n], self.phi.iloc[:n][::-1])
         plt.xlim(0, max_x)
         plt.ylim(0, n)
         plt.xlabel(u"Prob")
         plt.ylabel(u"word")
         plt.title(u"Phi")
-        plt.yticks(range(len(self.phi))[:n],
-                   self.phi.index[:n][::-1], rotation=0)
+        plt.yticks(range(len(self.phi))[:n], self.phi.index[:n][::-1], rotation=0)
         plt.show()
-        if save:
-            fig.save("Unigram.png")
 
     def estimate_hyper_param(self, beta=10, max_iter=100):
         """
@@ -53,9 +47,7 @@ class Unigram:
         """
         for i in range(max_iter):
             numerator = digamma(self.Nv + beta).sum() - self.V * digamma(beta)
-            denominator = self.V * \
-                digamma(self.N + beta * self.V) - \
-                self.V * digamma(beta * self.V)
+            denominator = self.V * digamma(self.N + beta * self.V) - self.V * digamma(beta * self.V)
             beta_new = beta * numerator / denominator
             if np.linalg.norm(beta - beta_new) / np.linalg.norm(beta) < 0.01:
                 print("beta is converged!\nbeta: {}".format(beta))
@@ -68,10 +60,10 @@ class Unigram:
 
 class MixtureUnigram:
     def __init__(self, K=9, alpha=0.1, beta=0.1, random_state=21):
+        np.random.seed(random_state)
         self.K = K
         self.alpha0 = alpha
         self.beta0 = beta
-        self.random_state = random_state
 
     def fit(self, docs, word2num, bows: list, estimator="ML", max_iter=1000):
         self.W = docs
@@ -119,7 +111,6 @@ class MixtureUnigram:
             self.phi = np.array([np.random.dirichlet(b) for b in self.beta])
 
     def init_params(self):
-        np.random.seed(self.random_state)
         theta = np.random.rand(self.K)
         theta /= theta.sum()
         phi = np.random.rand(self.K, self.V)
